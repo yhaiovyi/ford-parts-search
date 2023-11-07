@@ -87,7 +87,6 @@
     "@mui/material": "^5.14.17",
     "@mui/x-data-grid": "^6.18.0",
     "axios": "^1.6.0",
-    "axios-cookiejar-support": "^4.0.7",
     "axios-retry": "^3.8.1",
     "electron-debug": "^3.2.0",
     "electron-log": "^4.4.8",

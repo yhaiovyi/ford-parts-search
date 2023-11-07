@@ -80,7 +80,10 @@
     ],
     "transform": {
       "\\.(ts|tsx|js|jsx)$": "ts-jest"
-    }
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!mui-chips-input|use-local-storage-state)"
+    ]
   },
   "dependencies": {
     "@emotion/styled": "^11.11.0",

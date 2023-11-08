@@ -85,6 +85,9 @@
     },
     "transformIgnorePatterns": [
       "node_modules/(?!mui-chips-input|use-local-storage-state)"
+    ],
+    "setupFilesAfterEnv": [
+      "./setup-jest.ts"
     ]
   },
   "dependencies": {

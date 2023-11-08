@@ -1,12 +1,8 @@
-import WebsocketProvider from './WebsocketProvider';
 import Search from './Search';
+import './App.css';
 
 function App() {
-  return (
-    <WebsocketProvider>
-      <Search />
-    </WebsocketProvider>
-  );
+  return <Search />;
 }
 
 export default App;

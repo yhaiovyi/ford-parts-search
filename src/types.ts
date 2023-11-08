@@ -1,6 +1,12 @@
-export interface WebSocketMessage<T> {
-  type: string;
-  data: T;
+export enum IpcMessageType {
+  SEARCH = 'search',
+  RESOLVED_PARTS = 'resolvedParts',
+  SEARCH_RESULTS = 'searchResult',
+  SEARCH_PROGRESS = 'searchProgress',
+  SEARCH_COMPLETE = 'searchComplete',
+  SEARCH_CANCEL = 'searchCancel',
+  CANCEL_SEARCH = 'cancelSearch',
+  DISCONNECT = 'disconnect',
 }
 
 export interface ResolvedPart {

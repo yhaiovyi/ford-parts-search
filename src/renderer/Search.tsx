@@ -1,23 +1,42 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react';
-import { filter } from 'rxjs';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Box, Button, LinearProgress, TextField } from '@mui/material';
 import { MuiChipsInput } from 'mui-chips-input';
 import useLocalStorageState from 'use-local-storage-state';
 import styled from '@emotion/styled';
 
 import ResultsTable from './ResultsTable';
-import { WebsocketContext } from './WebsocketProvider';
-import { ResolvedParts, SearchData, WebSocketMessage } from '../types';
+import { SearchData, IpcMessageType } from '../types';
+import useIpc from './useIpc';
 
 const Form = styled.form`
   padding: 12px 6px;
   display: flex;
+  align-items: flex-start;
   flex-direction: row;
   gap: 9px;
 `;
 
+const InputAlignedButton = styled(Button)`
+  height: 56px;
+`;
+
 export default function Search() {
-  const { outgoing, incoming } = useContext(WebsocketContext);
+  const { outgoing: outgoingSearch } = useIpc(IpcMessageType.SEARCH);
+  const { outgoing: outgoingSearchCancel } = useIpc(
+    IpcMessageType.SEARCH_CANCEL,
+  );
+  const { incoming: incomingSearchProgress } = useIpc(
+    IpcMessageType.SEARCH_PROGRESS,
+  );
+  const { incoming: incomingSearchResults } = useIpc(
+    IpcMessageType.SEARCH_RESULTS,
+  );
+  const { incoming: incomingSearchComplete } = useIpc(
+    IpcMessageType.SEARCH_COMPLETE,
+  );
+  const { incoming: incomingResolvedParts } = useIpc(
+    IpcMessageType.RESOLVED_PARTS,
+  );
 
   const [searching, setSearching] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
@@ -46,59 +65,64 @@ export default function Search() {
         resolvedParts: [],
         searchResults: [],
       });
-      outgoing.next({
-        type: 'search',
-        data: {
-          searches,
-          zip,
-          radius,
-        },
+      outgoingSearch.next({
+        searches,
+        zip,
+        radius,
       });
     },
-    [outgoing, searches, radius, zip, setData],
+    [outgoingSearch, searches, radius, zip, setData],
   );
 
   const onCancel = useCallback(() => {
-    outgoing.next({ type: 'cancelSearch', data: null });
-  }, [outgoing]);
+    outgoingSearchCancel.next(null);
+  }, [outgoingSearchCancel]);
 
   useEffect(() => {
-    const partsSubscription = incoming
-      .pipe<WebSocketMessage<ResolvedParts>>(
-        filter(({ type }) => type === 'resolvedParts' && searching),
-      )
-      .subscribe(({ data: resolvedParts }) => {
-        setData({ resolvedParts, searchResults: [] });
-      });
-
-    const resultsSubscription = incoming
-      .pipe(filter(({ type }) => type === 'searchResult' && searching))
-      .subscribe(({ data: searchResult }) => {
-        setData({
-          ...data,
-          searchResults: [...data.searchResults, searchResult],
-        });
-      });
-
-    const searchCompleteSubscription = incoming
-      .pipe(filter(({ type }) => type === 'searchComplete' && searching))
-      .subscribe(() => {
-        setSearching(false);
-      });
-
-    const searchProgressSubscription = incoming
-      .pipe(filter(({ type }) => type === 'searchProgress' && searching))
-      .subscribe(({ data: currentProgress }) => {
-        setProgress(currentProgress);
-      });
-
+    const subscription = incomingSearchProgress.subscribe((currentProgress) => {
+      setProgress(currentProgress);
+    });
     return () => {
-      partsSubscription.unsubscribe();
-      resultsSubscription.unsubscribe();
-      searchCompleteSubscription.unsubscribe();
-      searchProgressSubscription.unsubscribe();
+      subscription.unsubscribe();
     };
-  });
+  }, [incomingSearchProgress]);
+
+  useEffect(() => {
+    const subscription = incomingSearchResults.subscribe((searchResult) => {
+      setData({
+        ...data,
+        searchResults: [...data.searchResults, searchResult],
+      });
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [data, setData, incomingSearchResults]);
+
+  useEffect(() => {
+    const subscription = incomingSearchComplete.subscribe(() => {
+      setSearching(false);
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [incomingSearchComplete]);
+
+  useEffect(() => {
+    const subscription = incomingResolvedParts.subscribe((resolvedParts) => {
+      setData({ resolvedParts, searchResults: [] });
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [data, setData, incomingResolvedParts]);
+
+  useEffect(() => {
+    outgoingSearchCancel.next(null);
+    return () => {
+      outgoingSearchCancel.next(null);
+    };
+  }, [outgoingSearchCancel]);
 
   return (
     <Box
@@ -136,18 +160,18 @@ export default function Search() {
           onChange={setSearches}
         />
         {searching ? (
-          <Button
+          <InputAlignedButton
             color="secondary"
             variant="outlined"
             type="button"
             onClick={onCancel}
           >
             Cancel
-          </Button>
+          </InputAlignedButton>
         ) : (
-          <Button color="primary" variant="contained" type="submit">
+          <InputAlignedButton color="primary" variant="contained" type="submit">
             Search
-          </Button>
+          </InputAlignedButton>
         )}
       </Form>
       {searching && (

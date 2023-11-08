@@ -9,12 +9,12 @@
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import { app, BrowserWindow, shell } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
-import setupExpress from './express';
+import setupEvents from './events';
 
 class AppUpdater {
   constructor() {
@@ -25,12 +25,6 @@ class AppUpdater {
 }
 
 let mainWindow: BrowserWindow | null = null;
-
-ipcMain.on('ipc-example', async (event, arg) => {
-  const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
-  console.log(msgTemplate(arg));
-  event.reply('ipc-example', msgTemplate('pong'));
-});
 
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');
@@ -72,8 +66,8 @@ const createWindow = async () => {
 
   mainWindow = new BrowserWindow({
     show: false,
-    width: 1024,
-    height: 728,
+    minWidth: 800,
+    minHeight: 600,
     icon: getAssetPath('icon.png'),
     webPreferences: {
       preload: app.isPackaged
@@ -81,6 +75,8 @@ const createWindow = async () => {
         : path.join(__dirname, '../../.erb/dll/preload.js'),
     },
   });
+
+  mainWindow.maximize();
 
   mainWindow.loadURL(resolveHtmlPath('index.html'));
 
@@ -108,9 +104,13 @@ const createWindow = async () => {
     return { action: 'deny' };
   });
 
+  setupEvents();
+
   // Remove this if your app does not use auto updates
   // eslint-disable-next-line
   new AppUpdater();
+
+  return mainWindow;
 };
 
 /**
@@ -128,7 +128,6 @@ app.on('window-all-closed', () => {
 app
   .whenReady()
   .then(() => {
-    setupExpress();
     createWindow();
     app.on('activate', () => {
       // On macOS it's common to re-create a window in the app when the

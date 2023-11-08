@@ -1,5 +1,7 @@
 {
+  "name": "ford-parts-search",
   "description": "Application for Ford parts searching",
+  "version": "1.0.0",
   "keywords": [
     "ford",
     "parts",

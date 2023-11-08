@@ -1,5 +1,6 @@
 export enum IpcMessageType {
   SEARCH = 'search',
+  SEARCH_VALIDATION_ERROR = 'searchValidationError',
   RESOLVED_PARTS = 'resolvedParts',
   SEARCH_RESULTS = 'searchResult',
   SEARCH_PROGRESS = 'searchProgress',
@@ -7,6 +8,12 @@ export enum IpcMessageType {
   SEARCH_CANCEL = 'searchCancel',
   CANCEL_SEARCH = 'cancelSearch',
   DISCONNECT = 'disconnect',
+}
+
+export interface SearchValidationError {
+  zip?: string;
+  radius?: string;
+  searches?: string;
 }
 
 export interface ResolvedPart {

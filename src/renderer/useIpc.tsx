@@ -2,9 +2,9 @@ import { useEffect, useMemo } from 'react';
 import { Subject } from 'rxjs';
 import { IpcMessageType } from '../types';
 
-export default function useIpc(type: IpcMessageType) {
-  const incoming = useMemo(() => new Subject<any>(), []);
-  const outgoing = useMemo(() => new Subject<any>(), []);
+export default function useIpc<T>(type: IpcMessageType) {
+  const incoming = useMemo(() => new Subject<T>(), []);
+  const outgoing = useMemo(() => new Subject<T>(), []);
   useEffect(() => {
     const subscription = outgoing.subscribe((data) => {
       window.electron.ipcRenderer.sendMessage(type, data);

@@ -1,8 +1,9 @@
 import zips from 'us-zips';
 import { ipcMain } from 'electron';
+import { isEmpty } from 'ramda';
 
 import searchParts from './search';
-import { IpcMessageType } from '../types';
+import { IpcMessageType, SearchValidationError } from '../types';
 
 export default function setupEvents() {
   let controller: AbortController;
@@ -15,10 +16,24 @@ export default function setupEvents() {
 
     console.log('searchOptions', searchOptions);
 
+    const validationError: SearchValidationError = {};
+    if (!zips[searchOptions.zip]) {
+      validationError.zip = 'Invalid zip code';
+    }
+    if (searchOptions.radius < 1 || searchOptions.radius > 5000) {
+      validationError.radius = 'Must be between 1 and 5000';
+    }
+    if (searchOptions.searches.length === 0) {
+      validationError.searches = 'Must have at least one search';
+    }
+    if (!isEmpty(validationError)) {
+      event.reply(IpcMessageType.SEARCH_VALIDATION_ERROR, validationError);
+      return;
+    }
+
     try {
       await searchParts({
         ...searchOptions,
-        zip: parseInt(searchOptions.zip, 10),
         onPartsResolved: (parts) => {
           event.reply(IpcMessageType.RESOLVED_PARTS, parts);
         },

@@ -1,11 +1,25 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Box, Button, LinearProgress, TextField } from '@mui/material';
+import {
+  Box,
+  Button,
+  LinearProgress,
+  Snackbar,
+  TextField,
+  Alert as MuiAlert,
+} from '@mui/material';
 import { MuiChipsInput } from 'mui-chips-input';
 import useLocalStorageState from 'use-local-storage-state';
 import styled from '@emotion/styled';
+import { difference, pluck } from 'ramda';
 
+import {
+  SearchData,
+  IpcMessageType,
+  SearchValidationError,
+  SearchResult,
+  ResolvedParts,
+} from '../types';
 import ResultsTable from './ResultsTable';
-import { SearchData, IpcMessageType } from '../types';
 import useIpc from './useIpc';
 
 const Form = styled.form`
@@ -22,22 +36,26 @@ const InputAlignedButton = styled(Button)`
 
 export default function Search() {
   const { outgoing: outgoingSearch } = useIpc(IpcMessageType.SEARCH);
-  const { outgoing: outgoingSearchCancel } = useIpc(
+  const { outgoing: outgoingSearchCancel } = useIpc<null>(
     IpcMessageType.SEARCH_CANCEL,
   );
-  const { incoming: incomingSearchProgress } = useIpc(
+  const { incoming: incomingSearchProgress } = useIpc<number>(
     IpcMessageType.SEARCH_PROGRESS,
   );
-  const { incoming: incomingSearchResults } = useIpc(
+  const { incoming: incomingSearchResults } = useIpc<SearchResult>(
     IpcMessageType.SEARCH_RESULTS,
   );
-  const { incoming: incomingSearchComplete } = useIpc(
+  const { incoming: incomingSearchComplete } = useIpc<null>(
     IpcMessageType.SEARCH_COMPLETE,
   );
-  const { incoming: incomingResolvedParts } = useIpc(
+  const { incoming: incomingResolvedParts } = useIpc<ResolvedParts>(
     IpcMessageType.RESOLVED_PARTS,
   );
+  const { incoming: incomingError } = useIpc<SearchValidationError>(
+    IpcMessageType.SEARCH_VALIDATION_ERROR,
+  );
 
+  const [error, setError] = useState<SearchValidationError>({});
   const [searching, setSearching] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [searches, setSearches] = useLocalStorageState<string[]>('searches', {
@@ -55,10 +73,14 @@ export default function Search() {
       searchResults: [],
     },
   });
+  const [warningMessage, setWarningMessage] = useState('');
 
   const onSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
+
+      setWarningMessage('');
+      setError({});
       setSearching(true);
       setProgress(0);
       setData({
@@ -110,12 +132,26 @@ export default function Search() {
 
   useEffect(() => {
     const subscription = incomingResolvedParts.subscribe((resolvedParts) => {
+      const resolvedSearches: string[] = pluck('search', resolvedParts);
+      const unresolvedSearches = difference(searches, resolvedSearches);
+      if (unresolvedSearches.length > 0)
+        setWarningMessage(`${unresolvedSearches.join(', ')} not found`);
       setData({ resolvedParts, searchResults: [] });
     });
     return () => {
       subscription.unsubscribe();
     };
-  }, [data, setData, incomingResolvedParts]);
+  }, [searches, data, setData, incomingResolvedParts]);
+
+  useEffect(() => {
+    const subscription = incomingError.subscribe((errorMessage) => {
+      setSearching(false);
+      setError(errorMessage);
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [incomingError]);
 
   useEffect(() => {
     outgoingSearchCancel.next(null);
@@ -123,6 +159,17 @@ export default function Search() {
       outgoingSearchCancel.next(null);
     };
   }, [outgoingSearchCancel]);
+
+  const handleClose = (
+    event?: React.SyntheticEvent | Event,
+    reason?: string,
+  ) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+
+    setWarningMessage('');
+  };
 
   return (
     <Box
@@ -135,29 +182,36 @@ export default function Search() {
     >
       <Form onSubmit={onSubmit}>
         <TextField
+          error={!!error.zip}
           label="Zip Code"
           type="string"
           value={zip}
-          onInput={(event: React.ChangeEvent<HTMLInputElement>) =>
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
             setZip(event.target.value)
           }
+          helperText={error.zip}
           required
         />
         <TextField
+          error={!!error.radius}
           label="Radius"
           type="number"
           value={radius}
-          onInput={(event: React.ChangeEvent<HTMLInputElement>) =>
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
             setRadius(event.target.value)
           }
+          helperText={error.radius}
           required
         />
         <MuiChipsInput
+          error={!!error.searches}
           sx={{ flex: 1 }}
           label="Search"
           size="medium"
           value={searches}
           onChange={setSearches}
+          helperText={error.searches}
+          required={searches.length === 0}
         />
         {searching ? (
           <InputAlignedButton
@@ -178,6 +232,21 @@ export default function Search() {
         <LinearProgress variant="determinate" value={progress * 100} />
       )}
       {data.resolvedParts.length > 0 && <ResultsTable data={data} />}
+      <Snackbar
+        open={!!warningMessage}
+        autoHideDuration={6000}
+        onClose={handleClose}
+      >
+        <MuiAlert
+          elevation={6}
+          variant="filled"
+          onClose={handleClose}
+          severity="warning"
+          sx={{ width: '100%' }}
+        >
+          {warningMessage}
+        </MuiAlert>
+      </Snackbar>
     </Box>
   );
 }

@@ -16,6 +16,8 @@ import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
 import setupEvents from './events';
 
+setupEvents();
+
 class AppUpdater {
   constructor() {
     log.transports.file.level = 'info';
@@ -69,6 +71,7 @@ const createWindow = async () => {
     minWidth: 800,
     minHeight: 600,
     icon: getAssetPath('icon.png'),
+    autoHideMenuBar: true,
     webPreferences: {
       preload: app.isPackaged
         ? path.join(__dirname, 'preload.js')
@@ -103,8 +106,6 @@ const createWindow = async () => {
     shell.openExternal(edata.url);
     return { action: 'deny' };
   });
-
-  setupEvents();
 
   // Remove this if your app does not use auto updates
   // eslint-disable-next-line

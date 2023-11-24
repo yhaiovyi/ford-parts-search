@@ -4,6 +4,7 @@ import { wrapper } from 'axios-cookiejar-support';
 import { CookieJar } from 'tough-cookie';
 import asyncPool from 'tiny-async-pool';
 import axiosRetry from 'axios-retry';
+import he from 'he';
 import {
   defaultTo,
   head,
@@ -137,6 +138,7 @@ const searchParts = async (options: SearchOptions) => {
         split('|'),
         head,
         trim,
+        he.decode,
       )(response.data);
       const packageQuantity: number = pipe(
         match(/Package Quantity:&nbsp;\s*(\d+)/m),

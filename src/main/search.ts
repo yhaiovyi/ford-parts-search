@@ -229,7 +229,7 @@ const searchParts = async (options: SearchOptions) => {
         match(/<h2 id="yourPrice">([^<]*)<\/h2>/),
         propOr(NaN, '1'),
         trim,
-        replace(/^\$/, ''),
+        replace(/[^\d.]/g, ''),
         parseFloat,
       )(response.data);
       const availability: string = pipe(

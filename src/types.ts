@@ -36,10 +36,16 @@ export interface Dealership {
   switchUrl: string;
 }
 
+export enum Availability {
+  IN_STOCK = 'In Stock',
+  AVAILABLE = 'Available',
+  OUT_OF_STOCK = 'Unavailable',
+}
+
 export interface SearchResultPart {
   search: string;
   price: number;
-  available: boolean;
+  available: Availability;
 }
 
 export type SearchResultParts = SearchResultPart[];

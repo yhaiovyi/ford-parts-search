@@ -16,7 +16,12 @@ import {
   split,
   trim,
 } from 'ramda';
-import { ResolvedPart, ResolvedParts, SearchResult } from '../types';
+import {
+  Availability,
+  ResolvedPart,
+  ResolvedParts,
+  SearchResult,
+} from '../types';
 
 interface Location {
   latitude: number;
@@ -51,6 +56,28 @@ interface ResolvedPartWithParams extends ResolvedPart {
 
 interface UnresolvedPart {
   search: string;
+}
+
+function messageToAvailable(message: string): Availability {
+  if (
+    message ===
+    'In stock for pickup at dealership, or will ship next business day'
+  ) {
+    return Availability.IN_STOCK;
+  }
+  if (
+    message ===
+    'In stock for pickup at dealership, or may take up to 15 days to ship from supplier'
+  ) {
+    return Availability.IN_STOCK;
+  }
+  if (message === 'This part may take up to 15 days to fulfill') {
+    return Availability.AVAILABLE;
+  }
+  if (message === 'Most parts available next business day.') {
+    return Availability.AVAILABLE;
+  }
+  return Availability.OUT_OF_STOCK;
 }
 
 const searchParts = async (options: SearchOptions) => {
@@ -234,24 +261,31 @@ const searchParts = async (options: SearchOptions) => {
         replace(/[^\d.]/g, ''),
         parseFloat,
       )(response.data);
+      const msrp: number = pipe(
+        match(/<span id="msrpPrice">([^<]*)<\/span>/),
+        propOr(NaN, '1'),
+        trim,
+        replace(/[^\d.]/g, ''),
+        parseFloat,
+      )(response.data);
       const availability: string = pipe(
         match(/inventoryMsg\s*:\s*([^\n]*)/),
         propOr('', '1'),
         trim,
       )(response.data);
-      const available = [
-        'In stock for pickup at dealership, or will ship next business day',
-        'Most parts available next business day.',
-      ].includes(availability);
+
+      const available = messageToAvailable(availability);
 
       return {
         search: part.search,
-        price,
+        price: price || msrp,
         available,
       };
     })) {
       console.log(
-        `${result.available ? '✅' : '❌'} ${result.search} / ${result.price}`,
+        `${result.available !== Availability.OUT_OF_STOCK ? '✅' : '❌'} ${
+          result.search
+        } / ${result.price}`,
       );
       row.results.push(result);
     }

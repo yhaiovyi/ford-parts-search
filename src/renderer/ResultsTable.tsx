@@ -1,3 +1,4 @@
+/* @ts-ignore */
 import {
   pipe,
   map,
@@ -22,6 +23,7 @@ import {
 import propTypes from 'prop-types';
 
 import {
+  Availability,
   Dealership,
   ResolvedPart,
   SearchData,
@@ -31,6 +33,17 @@ import {
 
 interface Props {
   data: SearchData;
+}
+
+function availabilityToColor(availability: Availability) {
+  switch (availability) {
+    case Availability.IN_STOCK:
+      return 'green';
+    case Availability.OUT_OF_STOCK:
+      return 'red';
+    default:
+      return undefined;
+  }
 }
 
 type RowModelValue = SearchResultPart | Dealership | string;
@@ -59,11 +72,18 @@ export default function ResultsTable({ data }: Readonly<Props>) {
           headerName: prop('name', partData),
           width: 120,
           sortable: true,
-          valueGetter: ({ value }: GridValueGetterParams) =>
-            value.available ? propOr(Infinity, 'price')(value) : Infinity,
+          sortComparator: (v1, v2) => {
+            return v1.price - v2.price;
+          },
           renderCell: ({ value, field }: GridRenderCellParams) => (
-            <Link target="_blank" href={partsIndex[field].url}>
-              {value === Infinity ? 'N/A' : `$${value}`}
+            <Link
+              target="_blank"
+              href={partsIndex[field].url}
+              sx={{
+                color: availabilityToColor(value.available),
+              }}
+            >
+              ${value.price.toFixed(2)}
               {partsIndex[field].packageQuantity > 1
                 ? ` (${partsIndex[field].packageQuantity})`
                 : ''}
@@ -88,16 +108,11 @@ export default function ResultsTable({ data }: Readonly<Props>) {
           valueGetter: ({ row }: GridValueGetterParams<RowModel>) =>
             pipe(
               values<RowModel>,
-              filter<RowModelValue>(
-                (value) => isSearchResultPart(value) && value.available,
-              ),
-              map<RowModelValue, number>(propOr(Infinity, 'price')),
+              filter<SearchResultPart>((value) => isSearchResultPart(value)),
+              map<SearchResultPart, number>((value) => value?.price),
               sum,
-              (value) => Number(value.toFixed(2)),
             )(row),
-          renderCell: ({ value }) => (
-            <span>{value === Infinity ? 'N/A' : `$${value}`}</span>
-          ),
+          renderCell: ({ value }) => <span>${value.toFixed(2)}</span>,
         }),
       )(data),
     );
@@ -123,7 +138,6 @@ export default function ResultsTable({ data }: Readonly<Props>) {
       initialState={{}}
       pageSizeOptions={[5]}
       disableRowSelectionOnClick
-      hideFooter
     />
   );
 }
